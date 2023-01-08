@@ -1,0 +1,8 @@
+[flake8]
+application-import-names = tests
+import-order-style = smarkets
+ignore = E203, W503, C408, B008, A003, VNE003, A002
+inline-quotes = double
+max-complexity = 15
+max-line-length = 79
+multiline-quotes = double
