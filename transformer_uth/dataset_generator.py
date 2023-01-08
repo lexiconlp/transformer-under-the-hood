@@ -1,12 +1,15 @@
 """
 Script to generate different task datasets:
 
-Based on https://github.com/greentfrapp/attention-primer
+Some dataset inspired on https://github.com/greentfrapp/attention-primer
 
 task1:
 Counting letters
 "ABCDABC" -> "2221"
 
+task2:
+Counting letters + Difference between A & B
+"AABA"    -> "31002"
 """
 import random
 from collections import Counter
@@ -30,3 +33,18 @@ def _output_task1(input_text: str) -> str:
     """
     counter_letters = Counter(input_text)
     return "".join(str(counter_letters.get(letter, 0)) for letter in _LETTERS)
+
+
+def _output_task2(input_text: str) -> str:
+    """Task 2 is count letters adding absolute number difference between A & B.
+
+    * last digit is absolute difference between numbers of A & numbers of B
+
+    example:
+    input  -> "ABA"
+    output -> "21001"
+    """
+    count_letters = _output_task1(input_text)
+    a, b, *_ = [int(i) for i in count_letters]
+    difference = str(abs(a - b))
+    return count_letters + difference
