@@ -1,0 +1,27 @@
+[tool.black]
+line_length = 79
+target_version = ["py38"]
+
+[tool.isort]
+profile = "black"
+line_length = 79
+
+[tool.poetry]
+name = "transformer-under-the-hood"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "transformer_under_the_hood"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^2.21.0"
+pre-commit-hooks = "^4.4.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
