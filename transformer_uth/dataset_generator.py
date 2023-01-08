@@ -19,11 +19,16 @@ task4:
 Multiple Signals (3 signals)
 "ABBBAA" -> "211"
 """
+import logging
 import random
 from collections import Counter
+from pathlib import Path
+from typing import Callable, List
 
 _LETTERS = "ABCD"
 _MAX_LENGTH = 9
+
+_PATH_DATA = Path(__file__).parent / "data"
 
 
 def _input_text() -> str:
@@ -87,3 +92,43 @@ def _output_task4(input_text: str) -> str:
     "B" apperas 1 time
     """
     return "".join(str(input_text[3:].count(c)) for c in input_text[:3])
+
+
+def _generate_random_sequences() -> List[str]:
+    random.seed(324)
+    return list({_input_text() for _ in range(2_000_000)})
+
+
+def _generate_dataset(
+    path_dataset: Path,
+    input_sequences: List[str],
+    func_task: Callable[[str], str],
+):
+    raw_text = ""
+    for input_seq in input_sequences:
+        output_seq = func_task(input_seq)
+        row = "{0}\t{1}\n".format(input_seq, output_seq)
+        raw_text += row
+
+    path_dataset.write_text(raw_text)
+    logging.warning("Dataset stored in %s", path_dataset)
+
+
+def _generate_task_datasets():
+    _PATH_DATA.mkdir(exist_ok=True, parents=True)
+
+    tasks = [
+        ("task1-data.tsv", _output_task1),
+        ("task2-data.tsv", _output_task2),
+        ("task3-data.tsv", _output_task3),
+        ("task4-data.tsv", _output_task4),
+    ]
+    random_inputs = _generate_random_sequences()
+    for task in tasks:
+        path_dataset = _PATH_DATA / task[0]
+        if not path_dataset.exists():
+            _generate_dataset(path_dataset, random_inputs, task[1])
+
+
+if __name__ == "__main__":
+    _generate_task_datasets()
