@@ -16,6 +16,9 @@ packages = [{include = "transformer_under_the_hood"}]
 
 [tool.poetry.dependencies]
 python = "^3.8"
+num2words = "^0.5.12"
+torch = "^1.13.1"
+torchtext = "^0.14.1"
 
 
 [tool.poetry.group.dev.dependencies]
