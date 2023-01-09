@@ -27,10 +27,10 @@ from typing import Callable, List
 
 from num2words import num2words
 
+from transformer_uth.consts import PATH_DATA
+
 _LETTERS = "ABCD"
 _MAX_LENGTH = 9
-
-_PATH_DATA = Path(__file__).parent / "data"
 
 
 def _input_text() -> str:
@@ -120,7 +120,7 @@ def _generate_dataset(
 
 
 def _generate_task_datasets():
-    _PATH_DATA.mkdir(exist_ok=True, parents=True)
+    PATH_DATA.mkdir(exist_ok=True, parents=True)
 
     tasks = (
         ("task1-data.tsv", _output_task1),
@@ -130,7 +130,7 @@ def _generate_task_datasets():
     )
     random_inputs = _generate_random_sequences()
     for task in tasks:
-        path_dataset = _PATH_DATA / task[0]
+        path_dataset = PATH_DATA / task[0]
         if not path_dataset.exists():
             outputs = _generate_output(random_inputs, task[1])
             _generate_dataset(path_dataset, random_inputs, outputs)
@@ -151,7 +151,7 @@ def _generate_number_translation_datasets():
         ("en_numbers_translation.tsv", en_numbers),
     )
     for task in tasks:
-        path_dataset = _PATH_DATA / task[0]
+        path_dataset = PATH_DATA / task[0]
         if not path_dataset.exists():
             _generate_dataset(path_dataset, task[1], output_numbers)
 
