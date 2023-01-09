@@ -6,7 +6,7 @@ from torch.nn.functional import cross_entropy
 from torch.utils.data import DataLoader
 
 from transformer_uth.attention_models import AttentionModel
-from transformer_uth.consts import PATH_DATA
+from transformer_uth.consts import PATH_DATA, PATH_MODELS
 from transformer_uth.vectorizer import CharVectorizer
 
 
@@ -50,5 +50,13 @@ def _train_model(
     return model
 
 
+def _save_model(model: AttentionModel, name_model: str) -> None:
+    PATH_MODELS.mkdir(parents=True, exist_ok=True)
+    path_model = PATH_MODELS / name_model
+    torch.save(model.state_dict(), path_model)
+    print(f"Model stored in {path_model} ")
+
+
 if __name__ == "__main__":
     model = _train_model(PATH_DATA / "task1-data.tsv")
+    _save_model(model, "task1-model.pth")
