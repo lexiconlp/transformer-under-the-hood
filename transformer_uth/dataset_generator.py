@@ -27,7 +27,7 @@ from typing import Callable, List
 
 from num2words import num2words
 
-from transformer_uth.consts import PATH_DATA
+from transformer_uth.consts import PATH_DATA, PATH_TEST
 
 _LETTERS = "ABCD"
 _MAX_LENGTH = 9
@@ -156,6 +156,29 @@ def _generate_number_translation_datasets():
             _generate_dataset(path_dataset, task[1], output_numbers)
 
 
+def _split_test_data(path_data: Path):
+    def _split_input_output(rows: List[str]):
+        return zip(*[row.split("\t") for row in rows if row])
+
+    if PATH_TEST.exists():
+        return
+
+    PATH_TEST.mkdir(exist_ok=True, parents=True)
+    random.seed(324)
+    for file_tsv in path_data.glob("*.tsv"):
+        rows = [row for row in file_tsv.read_text().split("\n") if row]
+        size = len(rows) // 2
+        train_data = random.choices(rows, k=size)
+        test_data = list(set(rows) - set(train_data))
+
+        inputs_train, outputs_train = _split_input_output(train_data)
+        _generate_dataset(file_tsv, inputs_train, outputs_train)
+
+        inputs_test, outputs_test = _split_input_output(test_data)
+        _generate_dataset(PATH_TEST / file_tsv.name, inputs_test, outputs_test)
+
+
 if __name__ == "__main__":
     _generate_task_datasets()
     _generate_number_translation_datasets()
+    _split_test_data(PATH_DATA)
