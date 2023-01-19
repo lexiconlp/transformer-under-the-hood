@@ -26,7 +26,7 @@ def _evaluate_model(path_test: Path, model: AttentionModel):
     for batch in data_loader:
         minibatch_x, minibatch_y = batch
 
-        logit_pred, _ = model(minibatch_x)
+        logit_pred, *_ = model(minibatch_x)
         pred_lbs = logit_pred.argmax(dim=2)
         true_lbs = minibatch_y.argmax(dim=2)
 

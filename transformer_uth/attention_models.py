@@ -1,7 +1,7 @@
 """
 Define different attention models.
 """
-from typing import Tuple
+from typing import Tuple, Type, Union
 
 import torch
 from torch import nn
@@ -56,3 +56,40 @@ class AttentionModel(nn.Module):
 
         logits = self.final_dense(decoding)
         return logits, attention_weights
+
+
+class SelfAttentionModel(nn.Module):
+    def __init__(self, vocab_in: int, vocab_out: int, len_out: int, hidden=64):
+        super().__init__()
+
+        self.vocab_in = vocab_in
+        self.vocab_out = vocab_out
+        self.len_out = len_out
+        self.hidden = hidden
+
+        self.query = nn.Parameter(
+            torch.zeros((1, self.len_out, self.hidden), requires_grad=True)
+        )
+        self.key_val_dense = nn.Linear(self.vocab_in, self.hidden)
+        self.layer_norm = nn.LayerNorm(self.hidden)
+        self.layer_norm_self = nn.LayerNorm(self.hidden)
+        self.final_dense = nn.Linear(self.hidden, self.vocab_out)
+
+    def forward(self, x_batch):
+        key_val = self.key_val_dense(x_batch)
+
+        decoding, attention_weights = _attention(
+            self.query.repeat(key_val.shape[0], 1, 1), key_val, key_val
+        )
+        decoding = self.layer_norm(decoding)
+
+        decoding, self_attention_weights = _attention(
+            decoding, decoding, decoding
+        )
+        decoding = self.layer_norm_self(decoding)
+
+        logits = self.final_dense(decoding)
+        return logits, attention_weights, self_attention_weights
+
+
+TransformerModel = Type[Union[AttentionModel, SelfAttentionModel]]
