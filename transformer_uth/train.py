@@ -16,11 +16,15 @@ def _train_model(
     dataset = CharVectorizer(path_data)
     data_loader = DataLoader(dataset=dataset, batch_size=batch_size)
 
-    model = AttentionModel(len(dataset.input_vocab), len(dataset.output_vocab))
+    model = AttentionModel(
+        len(dataset.input_vocab),
+        len(dataset.output_vocab),
+        dataset.output_max_len,
+    )
 
     optimizer = optim.Adam(model.parameters(), lr=1e-2)
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=250, verbose=True
+        optimizer, patience=1000, verbose=True
     )
 
     n_params = sum(p.numel() for p in model.parameters())
@@ -58,5 +62,5 @@ def _save_model(model: AttentionModel, name_model: str) -> None:
 
 
 if __name__ == "__main__":
-    model = _train_model(PATH_DATA / "task1-data.tsv")
-    _save_model(model, "task1-model.pth")
+    model = _train_model(PATH_DATA / "task2-data.tsv", 7)
+    _save_model(model, "task2-model.pth")

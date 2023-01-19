@@ -32,19 +32,20 @@ def _attention(
 
 
 class AttentionModel(nn.Module):
-    def __init__(self, dim_in: int, dim_out: int, hidden=64):
+    def __init__(self, vocab_in: int, vocab_out: int, len_out: int, hidden=64):
         super().__init__()
 
-        self.dim_in = dim_in
-        self.dim_out = dim_out
+        self.vocab_in = vocab_in
+        self.vocab_out = vocab_out
+        self.len_out = len_out
         self.hidden = hidden
 
         self.query = nn.Parameter(
-            torch.zeros((1, self.dim_in, self.hidden), requires_grad=True)
+            torch.zeros((1, self.len_out, self.hidden), requires_grad=True)
         )
-        self.key_val_dense = nn.Linear(self.dim_in, self.hidden)
+        self.key_val_dense = nn.Linear(self.vocab_in, self.hidden)
         self.layer_norm = nn.LayerNorm(self.hidden)
-        self.final_dense = nn.Linear(self.hidden, self.dim_out)
+        self.final_dense = nn.Linear(self.hidden, self.vocab_out)
 
     def forward(self, x_batch):
         key_val = self.key_val_dense(x_batch)
