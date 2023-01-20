@@ -10,11 +10,7 @@ from transformer_uth.vectorizer import _text_to_one_hot, CharVectorizer
 
 def _load_model(path_data: Path, path_model: Path) -> AttentionModel:
     dataset = CharVectorizer(path_data)
-    model = AttentionModel(
-        len(dataset.input_vocab),
-        len(dataset.output_vocab),
-        dataset.output_max_len,
-    )
+    model = AttentionModel(dataset.seq_data)
     model.load_state_dict(torch.load(path_model))
     return model
 

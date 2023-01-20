@@ -7,6 +7,8 @@ import torch
 from torch import nn
 from torch.nn.functional import softmax
 
+from transformer_uth.vectorizer import SequenceData
+
 
 def _attention(
     query: torch.Tensor, key: torch.Tensor, value: torch.Tensor
@@ -32,12 +34,12 @@ def _attention(
 
 
 class AttentionModel(nn.Module):
-    def __init__(self, vocab_in: int, vocab_out: int, len_out: int, hidden=64):
+    def __init__(self, seq_data: SequenceData, hidden=64):
         super().__init__()
 
-        self.vocab_in = vocab_in
-        self.vocab_out = vocab_out
-        self.len_out = len_out
+        self.vocab_in = seq_data.vocab_in
+        self.vocab_out = seq_data.vocab_out
+        self.len_out = seq_data.len_out
         self.hidden = hidden
 
         self.query = nn.Parameter(
@@ -59,12 +61,12 @@ class AttentionModel(nn.Module):
 
 
 class SelfAttentionModel(nn.Module):
-    def __init__(self, vocab_in: int, vocab_out: int, len_out: int, hidden=64):
+    def __init__(self, seq_data: SequenceData, hidden=64):
         super().__init__()
 
-        self.vocab_in = vocab_in
-        self.vocab_out = vocab_out
-        self.len_out = len_out
+        self.vocab_in = seq_data.vocab_in
+        self.vocab_out = seq_data.vocab_out
+        self.len_out = seq_data.len_out
         self.hidden = hidden
 
         self.query = nn.Parameter(

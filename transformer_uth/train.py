@@ -21,12 +21,7 @@ def _train_model(
 ) -> TransformerModel:
     dataset = CharVectorizer(path_data)
     data_loader = DataLoader(dataset=dataset, batch_size=batch_size)
-
-    model = transformer(
-        len(dataset.input_vocab),
-        len(dataset.output_vocab),
-        dataset.output_max_len,
-    )
+    model = transformer(dataset.seq_data)
 
     optimizer = optim.Adam(model.parameters(), lr=1e-2)
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
