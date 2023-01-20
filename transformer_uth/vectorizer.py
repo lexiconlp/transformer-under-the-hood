@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
@@ -28,6 +29,14 @@ def _text_to_one_hot(
 ) -> torch.Tensor:
     idxs = _text2ids(text, vocabulary)
     return _idxs_to_one_hot(idxs, max_len, len(vocabulary))
+
+
+@dataclass
+class SequenceData:
+    vocab_in: int
+    vocab_out: int
+    len_out: int
+    len_in: int = -1
 
 
 class CharVectorizer(Dataset):
@@ -61,3 +70,12 @@ class CharVectorizer(Dataset):
         )
 
         return tensor_input, tensor_output
+
+    @property
+    def seq_data(self) -> SequenceData:
+        return SequenceData(
+            vocab_in=len(self.input_vocab),
+            vocab_out=len(self.output_vocab),
+            len_out=self.output_max_len,
+            len_in=self.input_max_len,
+        )

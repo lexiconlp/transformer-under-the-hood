@@ -1,11 +1,13 @@
 """
 Define different attention models.
 """
-from typing import Tuple
+from typing import Tuple, Type, Union
 
 import torch
 from torch import nn
 from torch.nn.functional import softmax
+
+from transformer_uth.vectorizer import SequenceData
 
 
 def _attention(
@@ -32,19 +34,20 @@ def _attention(
 
 
 class AttentionModel(nn.Module):
-    def __init__(self, dim_in: int, dim_out: int, hidden=64):
+    def __init__(self, seq_data: SequenceData, hidden=64):
         super().__init__()
 
-        self.dim_in = dim_in
-        self.dim_out = dim_out
+        self.vocab_in = seq_data.vocab_in
+        self.vocab_out = seq_data.vocab_out
+        self.len_out = seq_data.len_out
         self.hidden = hidden
 
         self.query = nn.Parameter(
-            torch.zeros((1, self.dim_in, self.hidden), requires_grad=True)
+            torch.zeros((1, self.len_out, self.hidden), requires_grad=True)
         )
-        self.key_val_dense = nn.Linear(self.dim_in, self.hidden)
+        self.key_val_dense = nn.Linear(self.vocab_in, self.hidden)
         self.layer_norm = nn.LayerNorm(self.hidden)
-        self.final_dense = nn.Linear(self.hidden, self.dim_out)
+        self.final_dense = nn.Linear(self.hidden, self.vocab_out)
 
     def forward(self, x_batch):
         key_val = self.key_val_dense(x_batch)
@@ -55,3 +58,81 @@ class AttentionModel(nn.Module):
 
         logits = self.final_dense(decoding)
         return logits, attention_weights
+
+
+class SelfAttentionModel(nn.Module):
+    def __init__(self, seq_data: SequenceData, hidden=64):
+        super().__init__()
+
+        self.vocab_in = seq_data.vocab_in
+        self.vocab_out = seq_data.vocab_out
+        self.len_out = seq_data.len_out
+        self.hidden = hidden
+
+        self.query = nn.Parameter(
+            torch.zeros((1, self.len_out, self.hidden), requires_grad=True)
+        )
+        self.key_val_dense = nn.Linear(self.vocab_in, self.hidden)
+        self.layer_norm = nn.LayerNorm(self.hidden)
+        self.layer_norm_self = nn.LayerNorm(self.hidden)
+        self.final_dense = nn.Linear(self.hidden, self.vocab_out)
+
+    def forward(self, x_batch):
+        key_val = self.key_val_dense(x_batch)
+
+        decoding, attention_weights = _attention(
+            self.query.repeat(key_val.shape[0], 1, 1), key_val, key_val
+        )
+        decoding = self.layer_norm(decoding)
+
+        decoding, self_attention_weights = _attention(
+            decoding, decoding, decoding
+        )
+        decoding = self.layer_norm_self(decoding)
+
+        logits = self.final_dense(decoding)
+        return logits, attention_weights, self_attention_weights
+
+
+class PositionalAttentionModel(nn.Module):
+    def __init__(self, seq_data: SequenceData, hidden=64):
+        super().__init__()
+
+        self.vocab_in = seq_data.vocab_in
+        self.vocab_out = seq_data.vocab_out
+        self.len_out = seq_data.len_out
+        self.len_in = seq_data.len_in
+        self.hidden = hidden
+
+        self.query = nn.Parameter(
+            torch.zeros((1, self.len_out, self.hidden), requires_grad=True)
+        )
+        self.positional_emb = nn.Parameter(
+            torch.zeros((1, self.len_in, self.hidden), requires_grad=True)
+        )
+        self.key_val_dense = nn.Linear(self.vocab_in, self.hidden)
+        self.layer_norm = nn.LayerNorm(self.hidden)
+        self.layer_norm_self = nn.LayerNorm(self.hidden)
+        self.final_dense = nn.Linear(self.hidden, self.vocab_out)
+
+    def forward(self, x_batch):
+        key_val = self.key_val_dense(x_batch)
+        key_val += self.positional_emb
+
+        decoding, attention_weights = _attention(
+            self.query.repeat(key_val.shape[0], 1, 1), key_val, key_val
+        )
+        decoding = self.layer_norm(decoding)
+
+        decoding, self_attention_weights = _attention(
+            decoding, decoding, decoding
+        )
+        decoding = self.layer_norm_self(decoding)
+
+        logits = self.final_dense(decoding)
+        return logits, attention_weights, self_attention_weights
+
+
+TransformerModel = Type[
+    Union[AttentionModel, SelfAttentionModel, PositionalAttentionModel]
+]

@@ -10,7 +10,7 @@ from transformer_uth.vectorizer import _text_to_one_hot, CharVectorizer
 
 def _load_model(path_data: Path, path_model: Path) -> AttentionModel:
     dataset = CharVectorizer(path_data)
-    model = AttentionModel(len(dataset.input_vocab), len(dataset.output_vocab))
+    model = AttentionModel(dataset.seq_data)
     model.load_state_dict(torch.load(path_model))
     return model
 
@@ -22,7 +22,7 @@ def _evaluate_model(path_test: Path, model: AttentionModel):
     for batch in data_loader:
         minibatch_x, minibatch_y = batch
 
-        logit_pred, _ = model(minibatch_x)
+        logit_pred, *_ = model(minibatch_x)
         pred_lbs = logit_pred.argmax(dim=2)
         true_lbs = minibatch_y.argmax(dim=2)
 

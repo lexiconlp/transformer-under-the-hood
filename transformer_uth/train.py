@@ -5,22 +5,27 @@ from torch import optim
 from torch.nn.functional import cross_entropy
 from torch.utils.data import DataLoader
 
-from transformer_uth.attention_models import AttentionModel
+from transformer_uth.attention_models import (
+    PositionalAttentionModel,
+    TransformerModel,
+)
 from transformer_uth.consts import PATH_DATA, PATH_MODELS
 from transformer_uth.vectorizer import CharVectorizer
 
 
 def _train_model(
-    path_data: Path, epochs: int = 3, batch_size: int = 200
-) -> AttentionModel:
+    path_data: Path,
+    transformer: TransformerModel,
+    epochs: int = 3,
+    batch_size: int = 200,
+) -> TransformerModel:
     dataset = CharVectorizer(path_data)
     data_loader = DataLoader(dataset=dataset, batch_size=batch_size)
-
-    model = AttentionModel(len(dataset.input_vocab), len(dataset.output_vocab))
+    model = transformer(dataset.seq_data)
 
     optimizer = optim.Adam(model.parameters(), lr=1e-2)
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=250, verbose=True
+        optimizer, patience=1000, verbose=True
     )
 
     n_params = sum(p.numel() for p in model.parameters())
@@ -37,7 +42,7 @@ def _train_model(
             minibatch_x, minibatch_y = batch
             optimizer.zero_grad()
             with torch.set_grad_enabled(True):
-                out, _ = model(minibatch_x)
+                out, *_ = model(minibatch_x)
                 loss = cross_entropy(
                     out.transpose(1, 2), minibatch_y.argmax(dim=2)
                 )
@@ -50,7 +55,7 @@ def _train_model(
     return model
 
 
-def _save_model(model: AttentionModel, name_model: str) -> None:
+def _save_model(model: TransformerModel, name_model: str) -> None:
     PATH_MODELS.mkdir(parents=True, exist_ok=True)
     path_model = PATH_MODELS / name_model
     torch.save(model.state_dict(), path_model)
@@ -58,5 +63,7 @@ def _save_model(model: AttentionModel, name_model: str) -> None:
 
 
 if __name__ == "__main__":
-    model = _train_model(PATH_DATA / "task1-data.tsv")
-    _save_model(model, "task1-model.pth")
+    model = _train_model(
+        PATH_DATA / "task3-data.tsv", PositionalAttentionModel
+    )
+    _save_model(model, "task3-model.pth")
