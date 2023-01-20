@@ -6,7 +6,7 @@ from torch.nn.functional import cross_entropy
 from torch.utils.data import DataLoader
 
 from transformer_uth.attention_models import (
-    SelfAttentionModel,
+    PositionalAttentionModel,
     TransformerModel,
 )
 from transformer_uth.consts import PATH_DATA, PATH_MODELS
@@ -63,5 +63,7 @@ def _save_model(model: TransformerModel, name_model: str) -> None:
 
 
 if __name__ == "__main__":
-    model = _train_model(PATH_DATA / "task2-data.tsv", SelfAttentionModel)
-    _save_model(model, "task2-model-self.pth")
+    model = _train_model(
+        PATH_DATA / "task3-data.tsv", PositionalAttentionModel
+    )
+    _save_model(model, "task3-model.pth")
