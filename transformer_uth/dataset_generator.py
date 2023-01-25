@@ -136,19 +136,21 @@ def _generate_task_datasets():
             _generate_dataset(path_dataset, random_inputs, outputs)
 
 
-def _generate_number_translation_datasets():
-    num_numbers = 1_000_000
+def _generate_number_translation_dataset(ini_number: int, end_number: int):
+
     es_numbers = [
-        num2words(number, lang="es") for number in range(num_numbers)
+        num2words(number, lang="es")
+        for number in range(ini_number, end_number)
     ]
     en_numbers = [
-        num2words(number, lang="en") for number in range(num_numbers)
+        num2words(number, lang="en")
+        for number in range(ini_number, end_number)
     ]
-    output_numbers = [str(number) for number in range(num_numbers)]
+    output_numbers = [str(number) for number in range(ini_number, end_number)]
 
     tasks = (
-        ("es_numbers_translation.tsv", es_numbers),
-        ("en_numbers_translation.tsv", en_numbers),
+        (f"es-numbers-translation-{ini_number}-{end_number}.tsv", es_numbers),
+        (f"en-numbers-translation-{ini_number}-{end_number}.tsv", en_numbers),
     )
     for task in tasks:
         path_dataset = PATH_DATA / task[0]
@@ -180,5 +182,6 @@ def _split_test_data(path_data: Path):
 
 if __name__ == "__main__":
     _generate_task_datasets()
-    _generate_number_translation_datasets()
     _split_test_data(PATH_DATA)
+    _generate_number_translation_dataset(0, 221)
+    _generate_number_translation_dataset(221, 241)
