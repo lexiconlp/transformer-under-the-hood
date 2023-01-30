@@ -4,6 +4,8 @@ https://pytorch.org/tutorials/beginner/translation_transformer.html
 
 I don't like notebooks 😬
 """
+import json
+import logging
 import math
 import random
 from timeit import default_timer as timer
@@ -16,6 +18,28 @@ from torch.nn import Transformer
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset
 from torchtext.vocab import build_vocab_from_iterator
+
+from transformer_uth.consts import PATH_MODELS
+
+PATH_TRANSFORMER_MODEL = PATH_MODELS / "text-to-number-model"
+MODEL_NAME = "transformer-text2num.pth"
+
+SRC_LANGUAGE = "text"
+TGT_LANGUAGE = "number"
+
+# Define special symbols and indices
+UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 0, 1, 2, 3
+# Make sure the tokens are in order of their
+# indices to properly insert them in vocab
+special_symbols = ["<unk>", "<pad>", "<bos>", "<eos>"]
+
+# Model hyperparameter:
+EMB_SIZE = 512
+NHEAD = 8
+FFN_HID_DIM = 512
+BATCH_SIZE = 128
+NUM_ENCODER_LAYERS = 3
+NUM_DECODER_LAYERS = 3
 
 
 class CustomStringSeq2SeqDataset(Dataset):
@@ -296,6 +320,25 @@ def greedy_decode(model, src, src_mask, max_len, start_symbol):
     return ys
 
 
+def _save_model(model: Seq2SeqTransformer) -> None:
+    PATH_TRANSFORMER_MODEL.mkdir(parents=True, exist_ok=True)
+    path_model = PATH_TRANSFORMER_MODEL / MODEL_NAME
+    torch.save(model.state_dict(), path_model)
+    logging.warning(f"🧠 Model stored in {path_model} ")
+
+
+def _save_vocab(vocab_transform: Dict):
+    src_vocab = vocab_transform[SRC_LANGUAGE].vocab.get_stoi()
+    tgt_vocab = vocab_transform[TGT_LANGUAGE].vocab.get_stoi()
+    (PATH_TRANSFORMER_MODEL / "scr-vocab.json").write_text(
+        json.dumps(src_vocab)
+    )
+    (PATH_TRANSFORMER_MODEL / "tgt-vocab.json").write_text(
+        json.dumps(tgt_vocab)
+    )
+    logging.warning(f"📒 Vocabulary dicts stored in {PATH_TRANSFORMER_MODEL} ")
+
+
 # actual function to translate input sentence into target language
 def translate(model: torch.nn.Module, src_sentence: str):
     model.eval()
@@ -320,12 +363,13 @@ if __name__ == "__main__":
 
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    num_samples = 1000
     dataset = [
         {"value": str(i), "text": num2words(i, lang="es")}
-        for i in range(500_000)
+        for i in range(num_samples)
     ] + [
         {"value": str(i), "text": num2words(i, lang="en")}
-        for i in range(500_000)
+        for i in range(num_samples)
     ]
 
     random.shuffle(dataset)
@@ -333,21 +377,12 @@ if __name__ == "__main__":
     train_iter = CustomStringSeq2SeqDataset(dataset[:len_train])
     valid_iter = CustomStringSeq2SeqDataset(dataset[len_train:])
 
-    SRC_LANGUAGE = "raw_boxes"
-    TGT_LANGUAGE = "date"
-
     # Place-holders
     token_transform = {}
     vocab_transform = {}
 
     token_transform[SRC_LANGUAGE] = lambda x: [c.lower() for c in x]
     token_transform[TGT_LANGUAGE] = lambda x: list(x)
-
-    # Define special symbols and indices
-    UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 0, 1, 2, 3
-    # Make sure the tokens are in order of their
-    # indices to properly insert them in vocab
-    special_symbols = ["<unk>", "<pad>", "<bos>", "<eos>"]
 
     for ln in [SRC_LANGUAGE, TGT_LANGUAGE]:
         # Create torchtext's Vocab object
@@ -377,17 +412,11 @@ if __name__ == "__main__":
             tensor_transform,
         )  # Add BOS/EOS and create tensor
 
-    NUM_EPOCHS = 2
+    NUM_EPOCHS = 15
     torch.manual_seed(0)
 
     SRC_VOCAB_SIZE = len(vocab_transform[SRC_LANGUAGE])
     TGT_VOCAB_SIZE = len(vocab_transform[TGT_LANGUAGE])
-    EMB_SIZE = 512
-    NHEAD = 8
-    FFN_HID_DIM = 512
-    BATCH_SIZE = 128
-    NUM_ENCODER_LAYERS = 3
-    NUM_DECODER_LAYERS = 3
 
     transformer = Seq2SeqTransformer(
         NUM_ENCODER_LAYERS,
@@ -424,3 +453,5 @@ if __name__ == "__main__":
         )
 
     print(translate(transformer, "veinti two "))
+    _save_model(transformer)
+    _save_vocab(vocab_transform)
