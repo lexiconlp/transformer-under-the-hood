@@ -4,11 +4,19 @@ from typing import List
 
 import torch
 
-from transformer_uth.consts import PATH_MODELS
-from transformer_uth.original.raw_pytorch_transformer import Seq2SeqTransformer
+from transformer_uth.original.raw_pytorch_transformer import (
+    EMB_SIZE,
+    FFN_HID_DIM,
+    MODEL_NAME,
+    NHEAD,
+    NUM_DECODER_LAYERS,
+    NUM_ENCODER_LAYERS,
+    PATH_TRANSFORMER_MODEL,
+    Seq2SeqTransformer,
+    SRC_LANGUAGE,
+    TGT_LANGUAGE,
+)
 
-SRC_LANGUAGE = "raw_boxes"
-TGT_LANGUAGE = "date"
 UNK_IDX, PAD_IDX, BOS_IDX, EOS_IDX = 0, 1, 2, 3
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -39,10 +47,14 @@ def _get_token_transform():
     return token_transform
 
 
-def _get_vocab_transform(path_vocab: Path):
+def _get_vocab_transform():
     vocab_transform = {}
-    src_vocab = json.loads((path_vocab / "src_vocab.json").read_text())
-    tgt_vocab = json.loads((path_vocab / "tgt_vocab.json").read_text())
+    src_vocab = json.loads(
+        (PATH_TRANSFORMER_MODEL / "scr-vocab.json").read_text()
+    )
+    tgt_vocab = json.loads(
+        (PATH_TRANSFORMER_MODEL / "tgt-vocab.json").read_text()
+    )
     inv_tgt_vocab = {v: k for k, v in tgt_vocab.items()}
     vocab_transform[SRC_LANGUAGE] = lambda x: [src_vocab[c] for c in x]
     vocab_transform[TGT_LANGUAGE] = lambda x: [inv_tgt_vocab[c] for c in x]
@@ -50,7 +62,8 @@ def _get_vocab_transform(path_vocab: Path):
     return vocab_transform, src_vocab, tgt_vocab
 
 
-def _get_text_transform(token_transform, vocab_transform):
+def _get_text_transform(vocab_transform):
+    token_transform = _get_token_transform()
     text_transform = {}
     for ln in [SRC_LANGUAGE, TGT_LANGUAGE]:
         text_transform[ln] = sequential_transforms(
@@ -99,16 +112,6 @@ def greedy_decode(model, src, src_mask, max_len, start_symbol):
     return ys
 
 
-# token_transform
-# vocab_transform
-# text_transform
-# greedy_decode
-
-# to see inside the model
-# https://discuss.pytorch.org/t/obtaining-outputs-and-attention-weights-from-intermediate-transformer-layers/74474/3
-# https://github.com/yoshitomo-matsubara/torchdistill/blob/main/demo/extract_intermediate_representations.ipynb
-
-
 def translate(
     model: torch.nn.Module, src_sentence: str, text_transform, vocab_transform
 ):
@@ -126,34 +129,26 @@ def translate(
     )
 
 
-def _load_model(path_model: Path, src_size, tgt_size) -> Seq2SeqTransformer:
-    src_vocab_size = src_size
-    tgt_vocab_size = tgt_size
-    emb_size = 512
-    nhead = 8
-    ffn_hid_dim = 512
-    num_encoder_layers = 3
-    num_decoder_layers = 3
-
+def _load_model(path_model: Path, src_vocab, tgt_vocab) -> Seq2SeqTransformer:
     model = Seq2SeqTransformer(
-        num_encoder_layers,
-        num_decoder_layers,
-        emb_size,
-        nhead,
-        src_vocab_size,
-        tgt_vocab_size,
-        ffn_hid_dim,
+        NUM_ENCODER_LAYERS,
+        NUM_DECODER_LAYERS,
+        EMB_SIZE,
+        NHEAD,
+        len(src_vocab),
+        len(tgt_vocab),
+        FFN_HID_DIM,
     )
+
     model.load_state_dict(torch.load(path_model))
     return model
 
 
 if __name__ == "__main__":
-    token_transform = _get_token_transform()
-    vocab_transform, src_vocab, tgt_vocab = _get_vocab_transform(PATH_MODELS)
-    text_transform = _get_text_transform(token_transform, vocab_transform)
+    vocab_transform, src_vocab, tgt_vocab = _get_vocab_transform()
+    text_transform = _get_text_transform(vocab_transform)
 
-    path_transformer = PATH_MODELS / "text2number_transformer.pth"
-    model = _load_model(path_transformer, len(src_vocab), len(tgt_vocab))
+    path_transformer = PATH_TRANSFORMER_MODEL / MODEL_NAME
+    model = _load_model(path_transformer, src_vocab, tgt_vocab)
 
     print(translate(model, "veintisiete", text_transform, vocab_transform))

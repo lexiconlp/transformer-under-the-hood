@@ -169,7 +169,7 @@ def _split_test_data(path_data: Path):
     random.seed(324)
     for file_tsv in path_data.glob("*.tsv"):
         rows = [row for row in file_tsv.read_text().split("\n") if row]
-        size = len(rows) // 2
+        size = len(rows) // 4
         train_data = random.choices(rows, k=size)
         test_data = list(set(rows) - set(train_data))
 
@@ -181,7 +181,7 @@ def _split_test_data(path_data: Path):
 
 
 if __name__ == "__main__":
-    _generate_task_datasets()
+    PATH_DATA.mkdir(exist_ok=True)
+    # _generate_task_datasets()
+    _generate_number_translation_dataset(0, 500_000)
     _split_test_data(PATH_DATA)
-    _generate_number_translation_dataset(0, 221)
-    _generate_number_translation_dataset(221, 241)
