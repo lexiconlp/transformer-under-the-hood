@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Tuple
 
 import torch
+from torch import Tensor
 
 from transformer_uth.original.raw_pytorch_transformer import (
     EMB_SIZE,
@@ -87,18 +88,90 @@ def generate_square_subsequent_mask(sz):
     )
 
 
+def _sa_block(
+    model_layer,
+    x_: Tensor,
+    attn_mask: Optional[Tensor],
+    key_padding_mask: Optional[Tensor],
+) -> Tuple[Tensor, Tensor]:
+    x_, mh_att = model_layer.self_attn(
+        x_,
+        x_,
+        x_,
+        attn_mask=attn_mask,
+        key_padding_mask=key_padding_mask,
+        need_weights=True,
+    )
+    return model_layer.dropout1(x_), mh_att
+
+
+def _mha_block(
+    model_layer,
+    x_: Tensor,
+    mem: Tensor,
+    attn_mask: Optional[Tensor],
+    key_padding_mask: Optional[Tensor],
+) -> Tuple[Tensor, Tensor]:
+    x_, mh_att = model_layer.multihead_attn(
+        x_,
+        mem,
+        mem,
+        attn_mask=attn_mask,
+        key_padding_mask=key_padding_mask,
+        need_weights=True,
+    )
+    return model_layer.dropout2(x_), mh_att
+
+
+def _get_encoder_attention_layers(
+    model: Seq2SeqTransformer, input_tks, input_mask
+):
+    # input_tks = text_transform[SRC_LANGUAGE](input_text).view(-1, 1)
+    # num_tks = input_tks.shape[0]
+    # input_mask = (torch.zeros(num_tks, num_tks)).type(torch.bool)
+    input_emb = model.src_tok_emb(input_tks)
+    input_pos_emb = model.positional_encoding(input_emb)
+
+    x_ = input_pos_emb
+    for enc_layer in model.transformer.encoder.layers:
+        enc_x, mh_att = _sa_block(enc_layer, x_, input_mask, None)
+        x_ = enc_layer.norm1(x_ + enc_x)
+        x_ = enc_layer.norm2(x_ + enc_layer._ff_block(x_))
+
+    return model.transformer.encoder.norm(x_)
+
+
+def _get_decoder_attention_layers(
+    model: Seq2SeqTransformer, pos_input_emb: Tensor, output_mask, ys: Tensor
+):
+    # output_mask = generate_square_subsequent_mask(ys.size(0)).
+    # type(torch.bool)
+    output_emb = model.tgt_tok_emb(ys)
+    pos_output_emb = model.positional_encoding(output_emb)
+
+    x_ = pos_output_emb
+    for dec_layer in model.transformer.decoder.layers:
+        dec_x, self_att = _sa_block(dec_layer, x_, output_mask, None)
+        x_ = dec_layer.norm1(x_ + dec_x)
+        dec_x, mh_att = _mha_block(dec_layer, x_, pos_input_emb, None, None)
+        x_ = dec_layer.norm2(x_ + dec_x)
+        x_ = dec_layer.norm3(x_ + dec_layer._ff_block(x_))
+
+    return model.transformer.decoder.norm(x_)
+
+
 def greedy_decode(model, src, src_mask, max_len, start_symbol):
     src = src.to(DEVICE)
     src_mask = src_mask.to(DEVICE)
 
-    memory = model.encode(src, src_mask)
+    memory = _get_encoder_attention_layers(model, src, src_mask)
     ys = torch.ones(1, 1).fill_(start_symbol).type(torch.long).to(DEVICE)
     for _i in range(max_len - 1):
         memory = memory.to(DEVICE)
         tgt_mask = (
             generate_square_subsequent_mask(ys.size(0)).type(torch.bool)
         ).to(DEVICE)
-        out = model.decode(ys, memory, tgt_mask)
+        out = _get_decoder_attention_layers(model, memory, tgt_mask, ys)
         out = out.transpose(0, 1)
         prob = model.generator(out[:, -1])
         _, next_word = torch.max(prob, dim=1)
