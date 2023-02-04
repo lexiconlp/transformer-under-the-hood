@@ -133,12 +133,14 @@ def _get_encoder_attention_layers(
     input_pos_emb = model.positional_encoding(input_emb)
 
     x_ = input_pos_emb
+    enc_attentions = []
     for enc_layer in model.transformer.encoder.layers:
         enc_x, mh_att = _sa_block(enc_layer, x_, input_mask, None)
+        enc_attentions.append(mh_att)
         x_ = enc_layer.norm1(x_ + enc_x)
         x_ = enc_layer.norm2(x_ + enc_layer._ff_block(x_))
 
-    return model.transformer.encoder.norm(x_)
+    return model.transformer.encoder.norm(x_), enc_attentions
 
 
 def _get_decoder_attention_layers(
@@ -150,28 +152,35 @@ def _get_decoder_attention_layers(
     pos_output_emb = model.positional_encoding(output_emb)
 
     x_ = pos_output_emb
+    dec_att = []
     for dec_layer in model.transformer.decoder.layers:
         dec_x, self_att = _sa_block(dec_layer, x_, output_mask, None)
         x_ = dec_layer.norm1(x_ + dec_x)
         dec_x, mh_att = _mha_block(dec_layer, x_, pos_input_emb, None, None)
+        dec_att.append(mh_att)
         x_ = dec_layer.norm2(x_ + dec_x)
         x_ = dec_layer.norm3(x_ + dec_layer._ff_block(x_))
 
-    return model.transformer.decoder.norm(x_)
+    return model.transformer.decoder.norm(x_), dec_att
 
 
 def greedy_decode(model, src, src_mask, max_len, start_symbol):
+
     src = src.to(DEVICE)
     src_mask = src_mask.to(DEVICE)
 
-    memory = _get_encoder_attention_layers(model, src, src_mask)
+    memory, enc_att = _get_encoder_attention_layers(model, src, src_mask)
     ys = torch.ones(1, 1).fill_(start_symbol).type(torch.long).to(DEVICE)
+    dec_att = []
     for _i in range(max_len - 1):
         memory = memory.to(DEVICE)
         tgt_mask = (
             generate_square_subsequent_mask(ys.size(0)).type(torch.bool)
         ).to(DEVICE)
-        out = _get_decoder_attention_layers(model, memory, tgt_mask, ys)
+        out, dec_att_lay = _get_decoder_attention_layers(
+            model, memory, tgt_mask, ys
+        )
+        dec_att.append(dec_att_lay)
         out = out.transpose(0, 1)
         prob = model.generator(out[:, -1])
         _, next_word = torch.max(prob, dim=1)
@@ -182,7 +191,7 @@ def greedy_decode(model, src, src_mask, max_len, start_symbol):
         )
         if next_word == EOS_IDX:
             break
-    return ys
+    return ys, enc_att, dec_att
 
 
 def translate(
@@ -192,14 +201,16 @@ def translate(
     src = text_transform[SRC_LANGUAGE](src_sentence).view(-1, 1)
     num_tokens = src.shape[0]
     src_mask = (torch.zeros(num_tokens, num_tokens)).type(torch.bool)
-    tgt_tokens = greedy_decode(
+    tgt_tokens, enc_att, dec_att = greedy_decode(
         model, src, src_mask, max_len=num_tokens + 5, start_symbol=BOS_IDX
-    ).flatten()
-    return (
+    )
+    tgt_tokens = tgt_tokens.flatten()
+    text_output = (
         " ".join(vocab_transform[TGT_LANGUAGE](list(tgt_tokens.cpu().numpy())))
         .replace("<bos>", "")
         .replace("<eos>", "")
     )
+    return text_output, enc_att, dec_att
 
 
 def _load_model(path_model: Path, src_vocab, tgt_vocab) -> Seq2SeqTransformer:
@@ -224,4 +235,6 @@ if __name__ == "__main__":
     path_transformer = PATH_TRANSFORMER_MODEL / MODEL_NAME
     model = _load_model(path_transformer, src_vocab, tgt_vocab)
 
-    print(translate(model, "veintisiete", text_transform, vocab_transform))
+    output_text, enc_at, dec_at = translate(
+        model, "veintisiete", text_transform, vocab_transform
+    )
