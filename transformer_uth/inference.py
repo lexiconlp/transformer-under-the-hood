@@ -3,19 +3,22 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
 
-from transformer_uth.attention_models import AttentionModel
+from transformer_uth.attention_models import AttentionModel, TransformerModel
 from transformer_uth.consts import PATH_DATA, PATH_MODELS, PATH_TEST
 from transformer_uth.vectorizer import _text_to_one_hot, CharVectorizer
 
 
-def _load_model(path_data: Path, path_model: Path) -> AttentionModel:
-    dataset = CharVectorizer(path_data)
-    model = AttentionModel(dataset.seq_data)
+def _load_model(
+    vectorizer: CharVectorizer,
+    path_model: Path,
+    transformer_model: TransformerModel,
+) -> TransformerModel:
+    model = transformer_model(vectorizer.seq_data)
     model.load_state_dict(torch.load(path_model))
     return model
 
 
-def _evaluate_model(path_test: Path, model: AttentionModel):
+def _evaluate_model(path_test: Path, model: TransformerModel):
     model.eval()
     dataset = CharVectorizer(path_test)
     data_loader = DataLoader(dataset=dataset, batch_size=len(dataset))
@@ -32,13 +35,16 @@ def _evaluate_model(path_test: Path, model: AttentionModel):
 
 
 if __name__ == "__main__":
-    model = _load_model(
-        PATH_DATA / "task1-data.tsv", PATH_MODELS / "task1-model.pth"
-    )
-    _evaluate_model(PATH_TEST / "task1-data.tsv", model)
+    name_task = "task1"
+    path_dat = PATH_DATA / f"{name_task}-data.tsv"
+    path_mod = PATH_MODELS / f"{name_task}-model.pth"
+    vectorizer = CharVectorizer(path_dat)
+    model = _load_model(vectorizer, path_mod, AttentionModel)
+
+    _evaluate_model(PATH_TEST / f"{name_task}-data.tsv", model)
 
     one_sample = "ABBBCDA"
-    vocab = {"A": 0, "B": 1, "C": 2, "D": 3}
-
-    vector_sample = _text_to_one_hot(one_sample, vocab, 9).unsqueeze(0)
-    logits, attention = model(vector_sample)
+    vector_sample = _text_to_one_hot(
+        one_sample, vectorizer.input_vocab, 9
+    ).unsqueeze(0)
+    logits, *attentions = model(vector_sample)

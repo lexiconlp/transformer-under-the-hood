@@ -182,6 +182,6 @@ def _split_test_data(path_data: Path):
 
 if __name__ == "__main__":
     PATH_DATA.mkdir(exist_ok=True)
-    # _generate_task_datasets()
-    _generate_number_translation_dataset(0, 500_000)
+    _generate_task_datasets()
+    # _generate_number_translation_dataset(0, 500_000)
     _split_test_data(PATH_DATA)
