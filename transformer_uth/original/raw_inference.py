@@ -57,8 +57,12 @@ def _get_vocab_transform():
         (PATH_TRANSFORMER_MODEL / "tgt-vocab.json").read_text()
     )
     inv_tgt_vocab = {v: k for k, v in tgt_vocab.items()}
-    vocab_transform[SRC_LANGUAGE] = lambda x: [src_vocab[c] for c in x]
-    vocab_transform[TGT_LANGUAGE] = lambda x: [inv_tgt_vocab[c] for c in x]
+    vocab_transform[SRC_LANGUAGE] = lambda x: [
+        src_vocab.get(c, UNK_IDX) for c in x
+    ]
+    vocab_transform[TGT_LANGUAGE] = lambda x: [
+        inv_tgt_vocab.get(c, UNK_IDX) for c in x
+    ]
 
     return vocab_transform, src_vocab, tgt_vocab
 
