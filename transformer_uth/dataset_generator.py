@@ -167,7 +167,7 @@ def _split_test_data(path_data: Path):
 
     PATH_TEST.mkdir(exist_ok=True, parents=True)
     random.seed(324)
-    for file_tsv in path_data.glob("*.tsv"):
+    for file_tsv in sorted(path_data.glob("*.tsv")):
         rows = [row for row in file_tsv.read_text().split("\n") if row]
         size = len(rows) // 4
         train_data = random.choices(rows, k=size)
