@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from transformer_uth.attention_models import AttentionModel, TransformerModel
-from transformer_uth.consts import PATH_DATA, PATH_MODELS, PATH_TEST
+from transformer_uth.consts import PATH_MODELS, PATH_TEST, PATH_TRAIN_DATA
 from transformer_uth.vectorizer import _text_to_one_hot, CharVectorizer
 
 
@@ -36,7 +36,7 @@ def _evaluate_model(path_test: Path, model: TransformerModel):
 
 if __name__ == "__main__":
     name_task = "task1"
-    path_dat = PATH_DATA / f"{name_task}-data.tsv"
+    path_dat = PATH_TRAIN_DATA / f"{name_task}-data.tsv"
     path_mod = PATH_MODELS / f"{name_task}-model.pth"
     vectorizer = CharVectorizer(path_dat)
     model = _load_model(vectorizer, path_mod, AttentionModel)
