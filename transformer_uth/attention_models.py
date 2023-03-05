@@ -119,16 +119,15 @@ class PositionalAttentionModel(nn.Module):
         key_val = self.key_val_dense(x_batch)
         key_val += self.positional_emb
 
-        decoding, attention_weights = _attention(
-            self.query.repeat(key_val.shape[0], 1, 1), key_val, key_val
-        )
-        decoding = self.layer_norm(decoding)
-
         decoding, self_attention_weights = _attention(
-            decoding, decoding, decoding
+            key_val, key_val, key_val
         )
         decoding = self.layer_norm_self(decoding)
 
+        decoding, attention_weights = _attention(
+            self.query.repeat(key_val.shape[0], 1, 1), decoding, decoding
+        )
+        decoding = self.layer_norm(decoding)
         logits = self.final_dense(decoding)
         return logits, attention_weights, self_attention_weights
 
